@@ -9,7 +9,7 @@ const session = require('express-session');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuration de la base de données avec variables d'environnement et fallback
+// Configuration de la base de données avec variables d'environnement et fallback 
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
