@@ -1,0 +1,140 @@
+graph TB
+    %% === COUCHE UTILISATEUR ===
+    subgraph "🌐 Interface Utilisateur"
+        UI[📱 Frontend HTML/CSS/JS]
+        LOGIN[🔐 Formulaire Login/Register]
+        DASH[📊 Dashboard Principal]
+        
+        subgraph "📋 Onglets Dashboard"
+            TAB1[📄 Mes Pages]
+            TAB2[💬 Réponses Prédéfinies]
+            TAB3[🤖 Configuration IA]
+            TAB4[📊 Historique]
+        end
+    end
+
+    %% === COUCHE APPLICATION ===
+    subgraph "⚙️ Serveur Node.js"
+        SERVER[🚀 Express Server]
+        
+        subgraph "🔒 Authentification"
+            AUTH[🛡️ Middleware JWT]
+            BCRYPT[🔐 Hash Passwords]
+            SESSION[📝 Express Session]
+        end
+        
+        subgraph "🌍 API Routes"
+            API_AUTH[POST /api/login, /register]
+            API_PAGES[GET/POST /api/facebook/*]
+            API_RESP[GET/POST /api/responses]
+            API_AI[POST /api/ai-config]
+            API_HIST[GET /api/history]
+            WEBHOOK[GET/POST /webhook]
+        end
+        
+        subgraph "🤖 Moteur Chatbot"
+            MSG_HANDLER[📨 handleMessage]
+            MATCH_LOGIC[🎯 Correspondance Mots-clés]
+            AI_FALLBACK[🧠 Génération IA Fallback]
+            FB_SENDER[📤 sendMessage Facebook]
+        end
+    end
+
+    %% === COUCHE DONNÉES ===
+    subgraph "💾 Base de Données"
+        DB_TYPE{Base de Données}
+        MYSQL[(🐬 MySQL Production)]
+        SQLITE[(📁 SQLite Fallback)]
+        
+        subgraph "📊 Tables"
+            T_USERS[(👥 users)]
+            T_PAGES[(📄 facebook_pages)]
+            T_RESPONSES[(💬 predefined_responses)]
+            T_AI[(🤖 ai_configs)]
+            T_HISTORY[(📜 message_history)]
+        end
+    end
+
+    %% === SERVICES EXTERNES ===
+    subgraph "🌐 Services Externes"
+        FB_API[📘 Facebook Graph API]
+        
+        subgraph "🧠 Fournisseurs IA"
+            OPENAI[🤖 OpenAI GPT]
+            MISTRAL[⚡ Mistral AI]
+            CLAUDE[🧠 Anthropic Claude]
+        end
+        
+        FB_WEBHOOK[📨 Facebook Webhooks]
+    end
+
+    %% === FLUX UTILISATEUR ===
+    USER[👤 Utilisateur] --> UI
+    UI --> LOGIN
+    LOGIN --> API_AUTH
+    API_AUTH --> AUTH
+    AUTH --> DASH
+    
+    DASH --> TAB1
+    DASH --> TAB2
+    DASH --> TAB3
+    DASH --> TAB4
+    
+    %% === FLUX DE CONNEXION ===
+    TAB1 --> API_PAGES
+    API_PAGES --> T_PAGES
+    T_PAGES --> FB_API
+    
+    %% === FLUX RÉPONSES ===
+    TAB2 --> API_RESP
+    API_RESP --> T_RESPONSES
+    
+    %% === FLUX IA ===
+    TAB3 --> API_AI
+    API_AI --> T_AI
+    
+    %% === FLUX HISTORIQUE ===
+    TAB4 --> API_HIST
+    API_HIST --> T_HISTORY
+    
+    %% === FLUX WEBHOOK/MESSAGES ===
+    FB_WEBHOOK --> WEBHOOK
+    WEBHOOK --> MSG_HANDLER
+    MSG_HANDLER --> T_PAGES
+    MSG_HANDLER --> MATCH_LOGIC
+    MATCH_LOGIC --> T_RESPONSES
+    MATCH_LOGIC --> AI_FALLBACK
+    AI_FALLBACK --> T_AI
+    AI_FALLBACK --> OPENAI
+    AI_FALLBACK --> MISTRAL
+    AI_FALLBACK --> CLAUDE
+    MSG_HANDLER --> FB_SENDER
+    FB_SENDER --> FB_API
+    MSG_HANDLER --> T_HISTORY
+    
+    %% === CONFIGURATION BDD ===
+    SERVER --> DB_TYPE
+    DB_TYPE -->|Production| MYSQL
+    DB_TYPE -->|Fallback/Dev| SQLITE
+    MYSQL --> T_USERS
+    MYSQL --> T_PAGES
+    MYSQL --> T_RESPONSES
+    MYSQL --> T_AI
+    MYSQL --> T_HISTORY
+    
+    %% === SÉCURITÉ ===
+    AUTH --> BCRYPT
+    SERVER --> SESSION
+    
+    %% === STYLES ===
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef backend fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef database fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef security fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    
+    class UI,LOGIN,DASH,TAB1,TAB2,TAB3,TAB4 frontend
+    class SERVER,API_AUTH,API_PAGES,API_RESP,API_AI,API_HIST,WEBHOOK,MSG_HANDLER,MATCH_LOGIC,AI_FALLBACK,FB_SENDER backend
+    class DB_TYPE,MYSQL,SQLITE,T_USERS,T_PAGES,T_RESPONSES,T_AI,T_HISTORY database
+    class FB_API,FB_WEBHOOK,OPENAI,MISTRAL,CLAUDE external
+    class AUTH,BCRYPT,SESSION security
