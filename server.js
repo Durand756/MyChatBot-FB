@@ -20,10 +20,10 @@ app.use(session({
 
 // Configuration base de données
 const dbConfig = {
-    host: 'localhost',
-    user: 'root',
-    password: 'your_mysql_password',
-    database: 'facebook_automation'
+    host: 'sql208.infinityfree.com',
+    user: 'if0_39781107',
+    password: 'DurandDev237',
+    database: 'if0_39781107_mychatbot_fb'
 };
 
 // Créer la connexion à la base de données
