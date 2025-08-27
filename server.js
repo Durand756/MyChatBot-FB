@@ -1,30 +1,33 @@
 const express = require('express');
 const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const path = require('path');
 const session = require('express-session');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuration de la base de données avec variables d'environnement et fallback 
+// Configuration Facebook App - À MODIFIER avec vos vraies valeurs
+const FACEBOOK_CONFIG = {
+    app_id: process.env.FACEBOOK_APP_ID || 'YOUR_FACEBOOK_APP_ID',
+    app_secret: process.env.FACEBOOK_APP_SECRET || 'YOUR_FACEBOOK_APP_SECRET',
+    redirect_uri: process.env.REDIRECT_URI || `http://localhost:${PORT}/auth/facebook/callback`
+};
+
+// Configuration de la base de données
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'facebook_automation',
     port: process.env.DB_PORT || 3306,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    connectionLimit: 10,
-    acquireTimeout: 60000,
-    timeout: 60000
+    connectionLimit: 10
 };
 
-// Configuration session pour production
+// Configuration session sécurisée
 const sessionConfig = {
-    secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production-' + Date.now(),
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(64).toString('hex'),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -34,476 +37,484 @@ const sessionConfig = {
     }
 };
 
-// Si en production, utiliser un store persistant
-if (process.env.NODE_ENV === 'production') {
-    const MySQLStore = require('express-mysql-session')(session);
-    const sessionStore = new MySQLStore(dbConfig);
-    sessionConfig.store = sessionStore;
-}
-
 // Middleware
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use(session(sessionConfig));
 
-// Créer la connexion à la base de données avec pool
+// Pool de connexions à la base de données
 let dbPool;
+
+/**
+ * Initialise la connexion à la base de données MySQL
+ */
 async function initDB() {
     try {
-        console.log('Tentative de connexion à la base de données...');
-        console.log('Config DB:', {
-            host: dbConfig.host,
-            user: dbConfig.user,
-            database: dbConfig.database,
-            port: dbConfig.port
-        });
-
-        // Créer le pool de connexions
+        console.log('🔄 Connexion à la base de données...');
         dbPool = mysql.createPool(dbConfig);
         
-        // Tester la connexion
+        // Test de la connexion
         const connection = await dbPool.getConnection();
         console.log('✅ Connecté à MySQL');
         connection.release();
         
-        // Créer les tables si elles n'existent pas
         await createTables();
     } catch (error) {
         console.error('❌ Erreur connexion DB:', error.message);
         
-        // Fallback vers SQLite si MySQL échoue (pour développement local)
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('🔄 Tentative de fallback vers SQLite...');
-            await initSQLite();
-        } else {
-            process.exit(1);
-        }
-    }
-}
-
-// Fallback SQLite pour développement local
-async function initSQLite() {
-    try {
-        const sqlite3 = require('sqlite3').verbose();
-        const { open } = require('sqlite');
-        
-        dbPool = await open({
-            filename: './database.sqlite',
-            driver: sqlite3.Database
-        });
-        
-        console.log('✅ Fallback SQLite initialisé');
-        await createSQLiteTables();
-    } catch (error) {
-        console.error('❌ Erreur SQLite fallback:', error.message);
-        console.log('ℹ️  Continuing without database for demo purposes...');
+        // Fallback mode démo si pas de DB
+        console.log('⚠️ Mode démo activé (sans base de données)');
         dbPool = null;
     }
 }
 
+/**
+ * Crée les tables nécessaires dans la base de données
+ */
 async function createTables() {
     if (!dbPool) return;
     
     try {
-        // Table utilisateurs
+        // Table des utilisateurs Facebook
         await dbPool.execute(`
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS facebook_users (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password VARCHAR(255) NOT NULL,
+                facebook_id VARCHAR(255) UNIQUE NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                email VARCHAR(255),
+                profile_picture TEXT,
+                access_token TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )
         `);
 
-        // Table pages Facebook
+        // Table des pages Facebook connectées
         await dbPool.execute(`
-            CREATE TABLE IF NOT EXISTS facebook_pages (
+            CREATE TABLE IF NOT EXISTS connected_pages (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
+                user_id INT NOT NULL,
                 page_id VARCHAR(255) NOT NULL,
                 page_name VARCHAR(255) NOT NULL,
-                access_token TEXT NOT NULL,
-                app_id VARCHAR(255) NOT NULL,
-                app_secret VARCHAR(255) NOT NULL,
-                webhook_token VARCHAR(255) NOT NULL,
-                is_active BOOLEAN DEFAULT true,
+                page_access_token TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT false,
+                webhook_verified BOOLEAN DEFAULT false,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                FOREIGN KEY (user_id) REFERENCES facebook_users(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_user_page (user_id, page_id)
             )
         `);
 
-        // Table réponses prédéfinies
+        // Table des réponses automatiques
         await dbPool.execute(`
-            CREATE TABLE IF NOT EXISTS predefined_responses (
+            CREATE TABLE IF NOT EXISTS auto_responses (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
                 page_id VARCHAR(255) NOT NULL,
                 keyword VARCHAR(255) NOT NULL,
                 response TEXT NOT NULL,
                 priority INT DEFAULT 1,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                INDEX idx_page_keyword (page_id, keyword)
             )
         `);
 
-        // Table configuration IA
+        // Table des conversations
         await dbPool.execute(`
-            CREATE TABLE IF NOT EXISTS ai_configs (
+            CREATE TABLE IF NOT EXISTS conversations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
-                page_id VARCHAR(255) NOT NULL,
-                provider VARCHAR(50) NOT NULL,
-                api_key TEXT NOT NULL,
-                model VARCHAR(100) NOT NULL,
-                temperature DECIMAL(3,2) DEFAULT 0.7,
-                instructions TEXT,
-                is_active BOOLEAN DEFAULT false,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        `);
-
-        // Table historique des messages
-        await dbPool.execute(`
-            CREATE TABLE IF NOT EXISTS message_history (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT,
                 page_id VARCHAR(255) NOT NULL,
                 sender_id VARCHAR(255) NOT NULL,
                 message_text TEXT NOT NULL,
                 response_text TEXT,
-                response_type ENUM('predefined', 'ai') NOT NULL,
+                response_type ENUM('keyword', 'ai', 'none') DEFAULT 'none',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                INDEX idx_page_sender (page_id, sender_id),
+                INDEX idx_created_at (created_at)
             )
         `);
-        
-        console.log('✅ Tables MySQL créées/vérifiées');
+
+        console.log('✅ Tables créées/vérifiées');
     } catch (error) {
-        console.error('❌ Erreur création tables MySQL:', error.message);
+        console.error('❌ Erreur création tables:', error.message);
     }
 }
 
-// Tables SQLite pour fallback
-async function createSQLiteTables() {
-    if (!dbPool) return;
-    
-    try {
-        await dbPool.exec(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                name TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS facebook_pages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                page_id TEXT NOT NULL,
-                page_name TEXT NOT NULL,
-                access_token TEXT NOT NULL,
-                app_id TEXT NOT NULL,
-                app_secret TEXT NOT NULL,
-                webhook_token TEXT NOT NULL,
-                is_active BOOLEAN DEFAULT 1,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS predefined_responses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                page_id TEXT NOT NULL,
-                keyword TEXT NOT NULL,
-                response TEXT NOT NULL,
-                priority INTEGER DEFAULT 1,
-                is_active BOOLEAN DEFAULT 1,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS ai_configs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                page_id TEXT NOT NULL,
-                provider TEXT NOT NULL,
-                api_key TEXT NOT NULL,
-                model TEXT NOT NULL,
-                temperature REAL DEFAULT 0.7,
-                instructions TEXT,
-                is_active BOOLEAN DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS message_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                page_id TEXT NOT NULL,
-                sender_id TEXT NOT NULL,
-                message_text TEXT NOT NULL,
-                response_text TEXT,
-                response_type TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-        `);
-        
-        console.log('✅ Tables SQLite créées/vérifiées');
-    } catch (error) {
-        console.error('❌ Erreur création tables SQLite:', error.message);
-    }
-}
-
-// Helper pour exécuter des requêtes de manière uniforme
+/**
+ * Exécute une requête SQL de manière sécurisée
+ */
 async function executeQuery(query, params = []) {
     if (!dbPool) {
-        console.log('⚠️ Pas de base de données - mode demo');
-        return [[], null];
+        console.log('⚠️ Mode démo - requête simulée');
+        return [[], { insertId: 1, affectedRows: 1 }];
     }
     
     try {
-        if (dbConfig.host === 'localhost' && process.env.NODE_ENV !== 'production') {
-            // SQLite
-            if (query.includes('SELECT')) {
-                const result = await dbPool.all(query, params);
-                return [result, null];
-            } else {
-                const result = await dbPool.run(query, params);
-                return [[], { insertId: result.lastID, affectedRows: result.changes }];
-            }
-        } else {
-            // MySQL
-            const [rows, fields] = await dbPool.execute(query, params);
-            return [rows, { insertId: rows.insertId, affectedRows: rows.affectedRows }];
-        }
+        const [rows] = await dbPool.execute(query, params);
+        return [rows, { insertId: rows.insertId, affectedRows: rows.affectedRows }];
     } catch (error) {
-        console.error('Erreur query:', error.message);
+        console.error('❌ Erreur SQL:', error.message);
         throw error;
     }
 }
 
-// Middleware d'authentification
-function authenticateToken(req, res, next) {
-    const token = req.headers['authorization']?.split(' ')[1];
-    
-    if (!token) {
-        return res.status(401).json({ error: 'Token manquant' });
+/**
+ * Middleware pour vérifier l'authentification utilisateur
+ */
+function requireAuth(req, res, next) {
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Non authentifié' });
     }
-
-    const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-' + Date.now();
-    jwt.verify(token, jwtSecret, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Token invalide' });
-        req.user = user;
-        next();
-    });
+    next();
 }
 
-// Routes d'authentification
-app.post('/api/register', async (req, res) => {
+// ===== ROUTES D'AUTHENTIFICATION FACEBOOK =====
+
+/**
+ * Génère l'URL de connexion Facebook avec les permissions nécessaires
+ */
+app.get('/auth/facebook', (req, res) => {
+    const state = crypto.randomBytes(32).toString('hex');
+    req.session.oauth_state = state;
+    
+    const scopes = [
+        'email',
+        'pages_show_list',
+        'pages_manage_metadata',
+        'pages_messaging',
+        'pages_read_engagement'
+    ].join(',');
+    
+    const facebookAuthUrl = `https://www.facebook.com/v18.0/dialog/oauth?` +
+        `client_id=${FACEBOOK_CONFIG.app_id}&` +
+        `redirect_uri=${encodeURIComponent(FACEBOOK_CONFIG.redirect_uri)}&` +
+        `scope=${encodeURIComponent(scopes)}&` +
+        `response_type=code&` +
+        `state=${state}`;
+    
+    res.redirect(facebookAuthUrl);
+});
+
+/**
+ * Callback après authentification Facebook
+ */
+app.get('/auth/facebook/callback', async (req, res) => {
+    const { code, state } = req.query;
+    
+    // Vérification du state pour éviter les attaques CSRF
+    if (state !== req.session.oauth_state) {
+        return res.redirect('/?error=invalid_state');
+    }
+    
+    if (!code) {
+        return res.redirect('/?error=access_denied');
+    }
+    
     try {
-        const { email, password, name } = req.body;
+        // Échanger le code contre un access token
+        const tokenResponse = await axios.get('https://graph.facebook.com/v18.0/oauth/access_token', {
+            params: {
+                client_id: FACEBOOK_CONFIG.app_id,
+                client_secret: FACEBOOK_CONFIG.app_secret,
+                redirect_uri: FACEBOOK_CONFIG.redirect_uri,
+                code: code
+            }
+        });
         
-        if (!dbPool) {
-            return res.status(503).json({ error: 'Service de base de données indisponible - mode démo' });
-        }
+        const { access_token } = tokenResponse.data;
         
-        // Vérifier si l'utilisateur existe déjà
-        const [existing] = await executeQuery('SELECT id FROM users WHERE email = ?', [email]);
-        if (existing.length > 0) {
-            return res.status(400).json({ error: 'Utilisateur déjà existant' });
-        }
-
-        // Hacher le mot de passe
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Récupérer les informations de l'utilisateur
+        const userResponse = await axios.get('https://graph.facebook.com/v18.0/me', {
+            params: {
+                fields: 'id,name,email,picture',
+                access_token: access_token
+            }
+        });
         
-        // Créer l'utilisateur
-        const [, result] = await executeQuery(
-            'INSERT INTO users (email, password, name) VALUES (?, ?, ?)',
-            [email, hashedPassword, name]
-        );
-
-        res.json({ message: 'Utilisateur créé avec succès', userId: result.insertId });
+        const userData = userResponse.data;
+        
+        // Sauvegarder ou mettre à jour l'utilisateur dans la DB
+        await saveOrUpdateUser(userData, access_token);
+        
+        // Créer la session utilisateur
+        req.session.user = {
+            facebook_id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            profile_picture: userData.picture?.data?.url,
+            access_token: access_token
+        };
+        
+        console.log(`✅ Utilisateur connecté: ${userData.name}`);
+        res.redirect('/?login=success');
+        
     } catch (error) {
-        console.error('Erreur register:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
+        console.error('❌ Erreur callback Facebook:', error.message);
+        res.redirect('/?error=auth_failed');
     }
 });
 
-app.post('/api/login', async (req, res) => {
+/**
+ * Sauvegarde ou met à jour un utilisateur Facebook
+ */
+async function saveOrUpdateUser(userData, accessToken) {
     try {
-        const { email, password } = req.body;
+        const [existingUsers] = await executeQuery(
+            'SELECT id FROM facebook_users WHERE facebook_id = ?',
+            [userData.id]
+        );
         
-        if (!dbPool) {
-            return res.status(503).json({ error: 'Service de base de données indisponible - mode démo' });
+        if (existingUsers.length > 0) {
+            // Mise à jour de l'utilisateur existant
+            await executeQuery(
+                'UPDATE facebook_users SET name = ?, email = ?, profile_picture = ?, access_token = ?, updated_at = NOW() WHERE facebook_id = ?',
+                [userData.name, userData.email, userData.picture?.data?.url, accessToken, userData.id]
+            );
+        } else {
+            // Création d'un nouvel utilisateur
+            await executeQuery(
+                'INSERT INTO facebook_users (facebook_id, name, email, profile_picture, access_token) VALUES (?, ?, ?, ?, ?)',
+                [userData.id, userData.name, userData.email, userData.picture?.data?.url, accessToken]
+            );
         }
+    } catch (error) {
+        console.error('❌ Erreur sauvegarde utilisateur:', error.message);
+    }
+}
+
+// ===== ROUTES API =====
+
+/**
+ * Récupère les informations de l'utilisateur connecté
+ */
+app.get('/api/user', requireAuth, (req, res) => {
+    res.json({
+        success: true,
+        user: {
+            name: req.session.user.name,
+            email: req.session.user.email,
+            profile_picture: req.session.user.profile_picture
+        }
+    });
+});
+
+/**
+ * Récupère la liste des pages Facebook de l'utilisateur
+ */
+app.get('/api/pages', requireAuth, async (req, res) => {
+    try {
+        const response = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
+            params: {
+                access_token: req.session.user.access_token,
+                fields: 'id,name,category,tasks,access_token'
+            }
+        });
         
-        // Trouver l'utilisateur
-        const [users] = await executeQuery('SELECT * FROM users WHERE email = ?', [email]);
+        const pages = response.data.data.filter(page => 
+            page.tasks && page.tasks.includes('MANAGE')
+        );
+        
+        // Récupérer le statut de connexion pour chaque page
+        const [connectedPages] = await executeQuery(
+            'SELECT page_id, is_active FROM connected_pages WHERE user_id = (SELECT id FROM facebook_users WHERE facebook_id = ?)',
+            [req.session.user.facebook_id]
+        );
+        
+        const connectedPageMap = {};
+        connectedPages.forEach(page => {
+            connectedPageMap[page.page_id] = page.is_active;
+        });
+        
+        const pagesWithStatus = pages.map(page => ({
+            id: page.id,
+            name: page.name,
+            category: page.category,
+            access_token: page.access_token,
+            is_connected: connectedPageMap[page.id] || false
+        }));
+        
+        res.json({
+            success: true,
+            pages: pagesWithStatus
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur récupération pages:', error.message);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Impossible de récupérer les pages' 
+        });
+    }
+});
+
+/**
+ * Connecte une page Facebook pour l'automatisation
+ */
+app.post('/api/pages/connect', requireAuth, async (req, res) => {
+    const { pageId, pageName, pageAccessToken } = req.body;
+    
+    try {
+        // Récupérer l'ID utilisateur depuis la DB
+        const [users] = await executeQuery(
+            'SELECT id FROM facebook_users WHERE facebook_id = ?',
+            [req.session.user.facebook_id]
+        );
+        
         if (users.length === 0) {
-            return res.status(400).json({ error: 'Utilisateur introuvable' });
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Utilisateur non trouvé' 
+            });
         }
-
-        const user = users[0];
         
-        // Vérifier le mot de passe
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) {
-            return res.status(400).json({ error: 'Mot de passe incorrect' });
-        }
-
-        // Créer le token JWT
-        const jwtSecret = process.env.JWT_SECRET || 'your-jwt-secret-change-in-production-' + Date.now();
-        const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '24h' });
+        const userId = users[0].id;
         
-        res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
-    } catch (error) {
-        console.error('Erreur login:', error);
-        res.status(500).json({ error: 'Erreur serveur' });
-    }
-});
-
-// Routes pour les pages Facebook
-app.post('/api/facebook/connect', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.status(503).json({ error: 'Service de base de données indisponible - mode démo' });
-        }
-
-        const { pageId, pageName, accessToken, appId, appSecret, webhookToken } = req.body;
-        
-        // Vérifier si la page existe déjà pour cet utilisateur
-        const [existing] = await executeQuery(
-            'SELECT id FROM facebook_pages WHERE user_id = ? AND page_id = ?',
-            [req.user.userId, pageId]
-        );
-
-        if (existing.length > 0) {
-            // Mettre à jour
-            await executeQuery(
-                'UPDATE facebook_pages SET page_name = ?, access_token = ?, app_id = ?, app_secret = ?, webhook_token = ? WHERE user_id = ? AND page_id = ?',
-                [pageName, accessToken, appId, appSecret, webhookToken, req.user.userId, pageId]
-            );
-        } else {
-            // Créer nouveau
-            await executeQuery(
-                'INSERT INTO facebook_pages (user_id, page_id, page_name, access_token, app_id, app_secret, webhook_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [req.user.userId, pageId, pageName, accessToken, appId, appSecret, webhookToken]
-            );
-        }
-
-        res.json({ message: 'Page connectée avec succès' });
-    } catch (error) {
-        console.error('Erreur connect page:', error);
-        res.status(500).json({ error: 'Erreur lors de la connexion de la page' });
-    }
-});
-
-app.get('/api/facebook/pages', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.json([]); // Mode démo
-        }
-
-        const [pages] = await executeQuery(
-            'SELECT page_id, page_name, is_active, created_at FROM facebook_pages WHERE user_id = ?',
-            [req.user.userId]
-        );
-        res.json(pages);
-    } catch (error) {
-        console.error('Erreur get pages:', error);
-        res.status(500).json({ error: 'Erreur lors de la récupération des pages' });
-    }
-});
-
-// Routes pour les réponses prédéfinies
-app.post('/api/responses', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.status(503).json({ error: 'Service de base de données indisponible - mode démo' });
-        }
-
-        const { pageId, keyword, response, priority } = req.body;
-        
+        // Sauvegarder la page connectée
         await executeQuery(
-            'INSERT INTO predefined_responses (user_id, page_id, keyword, response, priority) VALUES (?, ?, ?, ?, ?)',
-            [req.user.userId, pageId, keyword, response, priority || 1]
+            `INSERT INTO connected_pages (user_id, page_id, page_name, page_access_token, is_active) 
+             VALUES (?, ?, ?, ?, true) 
+             ON DUPLICATE KEY UPDATE 
+             page_name = VALUES(page_name), 
+             page_access_token = VALUES(page_access_token), 
+             is_active = true`,
+            [userId, pageId, pageName, pageAccessToken]
         );
-
-        res.json({ message: 'Réponse ajoutée avec succès' });
-    } catch (error) {
-        console.error('Erreur add response:', error);
-        res.status(500).json({ error: 'Erreur lors de l\'ajout de la réponse' });
-    }
-});
-
-app.get('/api/responses/:pageId', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.json([]); // Mode démo
-        }
-
-        const [responses] = await executeQuery(
-            'SELECT * FROM predefined_responses WHERE user_id = ? AND page_id = ? ORDER BY priority DESC',
-            [req.user.userId, req.params.pageId]
-        );
-        res.json(responses);
-    } catch (error) {
-        console.error('Erreur get responses:', error);
-        res.status(500).json({ error: 'Erreur lors de la récupération des réponses' });
-    }
-});
-
-// Routes pour la configuration IA
-app.post('/api/ai-config', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.status(503).json({ error: 'Service de base de données indisponible - mode démo' });
-        }
-
-        const { pageId, provider, apiKey, model, temperature, instructions } = req.body;
         
-        // Vérifier si une config existe déjà
-        const [existing] = await executeQuery(
-            'SELECT id FROM ai_configs WHERE user_id = ? AND page_id = ?',
-            [req.user.userId, pageId]
-        );
-
-        if (existing.length > 0) {
-            // Mettre à jour
-            await executeQuery(
-                'UPDATE ai_configs SET provider = ?, api_key = ?, model = ?, temperature = ?, instructions = ?, is_active = 1 WHERE user_id = ? AND page_id = ?',
-                [provider, apiKey, model, temperature, instructions, req.user.userId, pageId]
-            );
-        } else {
-            // Créer nouveau
-            await executeQuery(
-                'INSERT INTO ai_configs (user_id, page_id, provider, api_key, model, temperature, instructions, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
-                [req.user.userId, pageId, provider, apiKey, model, temperature, instructions]
-            );
-        }
-
-        res.json({ message: 'Configuration IA sauvegardée' });
+        console.log(`✅ Page connectée: ${pageName} (${pageId})`);
+        
+        res.json({
+            success: true,
+            message: 'Page connectée avec succès'
+        });
+        
     } catch (error) {
-        console.error('Erreur ai config:', error);
-        res.status(500).json({ error: 'Erreur lors de la sauvegarde' });
+        console.error('❌ Erreur connexion page:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la connexion de la page'
+        });
     }
 });
-// Webhook Facebook
+
+/**
+ * Déconnecte une page Facebook
+ */
+app.post('/api/pages/disconnect', requireAuth, async (req, res) => {
+    const { pageId } = req.body;
+    
+    try {
+        await executeQuery(
+            `UPDATE connected_pages 
+             SET is_active = false 
+             WHERE page_id = ? AND user_id = (
+                 SELECT id FROM facebook_users WHERE facebook_id = ?
+             )`,
+            [pageId, req.session.user.facebook_id]
+        );
+        
+        console.log(`🔌 Page déconnectée: ${pageId}`);
+        
+        res.json({
+            success: true,
+            message: 'Page déconnectée avec succès'
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur déconnexion page:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la déconnexion'
+        });
+    }
+});
+
+/**
+ * Ajoute une réponse automatique pour une page
+ */
+app.post('/api/responses', requireAuth, async (req, res) => {
+    const { pageId, keyword, response, priority = 1 } = req.body;
+    
+    try {
+        await executeQuery(
+            'INSERT INTO auto_responses (page_id, keyword, response, priority) VALUES (?, ?, ?, ?)',
+            [pageId, keyword, response, priority]
+        );
+        
+        res.json({
+            success: true,
+            message: 'Réponse automatique ajoutée'
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur ajout réponse:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de l\'ajout de la réponse'
+        });
+    }
+});
+
+/**
+ * Récupère les réponses automatiques d'une page
+ */
+app.get('/api/responses/:pageId', requireAuth, async (req, res) => {
+    try {
+        const [responses] = await executeQuery(
+            'SELECT * FROM auto_responses WHERE page_id = ? ORDER BY priority DESC, created_at DESC',
+            [req.params.pageId]
+        );
+        
+        res.json({
+            success: true,
+            responses: responses
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur récupération réponses:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erreur lors de la récupération'
+        });
+    }
+});
+
+/**
+ * Déconnexion de l'utilisateur
+ */
+app.post('/api/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            console.error('❌ Erreur déconnexion:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Erreur lors de la déconnexion' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: 'Déconnecté avec succès'
+        });
+    });
+});
+
+// ===== WEBHOOK FACEBOOK MESSENGER =====
+
+/**
+ * Vérification du webhook Facebook
+ */
 app.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-
+    
+    // Token de vérification (à définir dans votre app Facebook)
+    const VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || 'your_webhook_verify_token';
+    
     if (mode && token) {
-        if (mode === 'subscribe') {
-            // Ici on vérifie le token pour chaque page
-            console.log('Webhook vérifié pour token:', token);
+        if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+            console.log('✅ Webhook vérifié');
             res.status(200).send(challenge);
         } else {
             res.sendStatus(403);
@@ -513,242 +524,141 @@ app.get('/webhook', (req, res) => {
     }
 });
 
+/**
+ * Réception des messages via webhook
+ */
 app.post('/webhook', async (req, res) => {
-    try {
-        const body = req.body;
-        
-        if (body.object === 'page') {
-            for (const entry of body.entry) {
-                const pageId = entry.id;
-                
-                if (entry.messaging) {
-                    for (const event of entry.messaging) {
-                        if (event.message && event.message.text) {
-                            await handleMessage(pageId, event);
-                        }
+    const body = req.body;
+    
+    if (body.object === 'page') {
+        body.entry.forEach(async (entry) => {
+            const pageId = entry.id;
+            
+            if (entry.messaging) {
+                entry.messaging.forEach(async (event) => {
+                    if (event.message && event.message.text) {
+                        await handleIncomingMessage(pageId, event);
                     }
-                }
+                });
             }
-        }
-        
-        res.status(200).send('EVENT_RECEIVED');
-    } catch (error) {
-        console.error('Erreur webhook:', error);
-        res.status(500).send('Erreur');
+        });
     }
+    
+    res.status(200).send('EVENT_RECEIVED');
 });
 
-// Fonction pour traiter les messages
-async function handleMessage(pageId, event) {
-    if (!dbPool) {
-        console.log('⚠️ Pas de DB - message ignoré');
-        return;
-    }
-
+/**
+ * Traite un message entrant et génère une réponse automatique
+ */
+async function handleIncomingMessage(pageId, event) {
     try {
         const senderId = event.sender.id;
         const messageText = event.message.text;
         
-        if (!messageText) return;
-
         console.log(`📨 Message reçu sur page ${pageId}: "${messageText}"`);
-
-        // Trouver la configuration de la page
+        
+        // Récupérer le token de la page
         const [pages] = await executeQuery(
-            'SELECT * FROM facebook_pages WHERE page_id = ? AND is_active = 1',
+            'SELECT page_access_token FROM connected_pages WHERE page_id = ? AND is_active = true',
             [pageId]
         );
-
+        
         if (pages.length === 0) {
-            console.log('❌ Page non trouvée ou inactive:', pageId);
+            console.log(`⚠️ Page ${pageId} non trouvée ou inactive`);
             return;
         }
         
-        const pageConfig = pages[0];
-        const startTime = Date.now();
-
-        // Chercher une réponse prédéfinie
+        const pageAccessToken = pages[0].page_access_token;
+        
+        // Chercher une réponse automatique correspondante
         const [responses] = await executeQuery(
-            'SELECT * FROM predefined_responses WHERE page_id = ? AND is_active = 1 ORDER BY priority DESC',
-            [pageId]
+            'SELECT response FROM auto_responses WHERE page_id = ? AND is_active = true AND LOWER(?) LIKE LOWER(CONCAT("%", keyword, "%")) ORDER BY priority DESC LIMIT 1',
+            [pageId, messageText]
         );
-
+        
         let responseText = null;
-        let responseType = 'predefined';
-        let keywordMatched = null;
-
-        // Vérifier les mots-clés
-        for (const response of responses) {
-            if (messageText.toLowerCase().includes(response.keyword.toLowerCase())) {
-                responseText = response.response;
-                keywordMatched = response.keyword;
-                console.log(`✅ Mot-clé trouvé: "${response.keyword}"`);
-                break;
-            }
-        }
-
-        // Si pas de réponse prédéfinie, utiliser l'IA
-        if (!responseText) {
-            console.log('🤖 Tentative réponse IA...');
-            const [aiConfigs] = await executeQuery(
-                'SELECT * FROM ai_configs WHERE page_id = ? AND is_active = 1',
-                [pageId]
-            );
-
-            if (aiConfigs.length > 0) {
-                const aiConfig = aiConfigs[0];
-                responseText = await generateAIResponse(messageText, aiConfig);
-                responseType = 'ai';
-                console.log('✅ Réponse IA générée');
-            } else {
-                console.log('❌ Pas de config IA active');
-            }
-        }
-
-        if (responseText) {
-            // Envoyer la réponse
-            const success = await sendMessage(pageConfig.access_token, senderId, responseText);
-            const processingTime = Date.now() - startTime;
+        let responseType = 'none';
+        
+        if (responses.length > 0) {
+            responseText = responses[0].response;
+            responseType = 'keyword';
             
-            // Sauvegarder l'historique
-            await executeQuery(
-                'INSERT INTO message_history (user_id, page_id, sender_id, message_text, response_text, response_type) VALUES (?, ?, ?, ?, ?, ?)',
-                [pageConfig.user_id, pageId, senderId, messageText, responseText, responseType]
-            );
-
-            console.log(`📤 Réponse envoyée (${processingTime}ms):`, responseText.substring(0, 50) + '...');
-        } else {
-            console.log('❌ Aucune réponse trouvée');
+            // Envoyer la réponse
+            await sendMessage(pageAccessToken, senderId, responseText);
+            console.log(`📤 Réponse automatique envoyée: "${responseText}"`);
         }
+        
+        // Sauvegarder la conversation
+        await executeQuery(
+            'INSERT INTO conversations (page_id, sender_id, message_text, response_text, response_type) VALUES (?, ?, ?, ?, ?)',
+            [pageId, senderId, messageText, responseText, responseType]
+        );
+        
     } catch (error) {
-        console.error('❌ Erreur handleMessage:', error.message);
+        console.error('❌ Erreur traitement message:', error.message);
     }
 }
 
-// Fonction pour envoyer un message Facebook
-async function sendMessage(accessToken, recipientId, messageText) {
+/**
+ * Envoie un message via l'API Facebook Messenger
+ */
+async function sendMessage(pageAccessToken, recipientId, messageText) {
     try {
-        const response = await axios.post(`https://graph.facebook.com/v18.0/me/messages?access_token=${accessToken}`, {
+        await axios.post(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
             recipient: { id: recipientId },
             message: { text: messageText }
         });
         return true;
     } catch (error) {
-        console.error('❌ Erreur envoi message Facebook:', error.response?.data || error.message);
+        console.error('❌ Erreur envoi message:', error.response?.data || error.message);
         return false;
     }
 }
 
-// Fonction pour générer une réponse IA
-async function generateAIResponse(messageText, aiConfig) {
-    try {
-        let response = '';
-        
-        switch (aiConfig.provider) {
-            case 'OpenAI':
-                const openaiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
-                    model: aiConfig.model,
-                    messages: [
-                        { role: 'system', content: aiConfig.instructions || 'Réponds de manière amicale et utile.' },
-                        { role: 'user', content: messageText }
-                    ],
-                    temperature: parseFloat(aiConfig.temperature),
-                    max_tokens: 150
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${aiConfig.api_key}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                response = openaiResponse.data.choices[0].message.content;
-                break;
-                
-            case 'Mistral':
-                const mistralResponse = await axios.post('https://api.mistral.ai/v1/chat/completions', {
-                    model: aiConfig.model,
-                    messages: [
-                        { role: 'system', content: aiConfig.instructions || 'Réponds de manière amicale et utile.' },
-                        { role: 'user', content: messageText }
-                    ],
-                    temperature: parseFloat(aiConfig.temperature),
-                    max_tokens: 150
-                }, {
-                    headers: {
-                        'Authorization': `Bearer ${aiConfig.api_key}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                response = mistralResponse.data.choices[0].message.content;
-                break;
-                
-            case 'Claude':
-                const claudeResponse = await axios.post('https://api.anthropic.com/v1/messages', {
-                    model: aiConfig.model,
-                    max_tokens: 150,
-                    messages: [
-                        { role: 'user', content: `${aiConfig.instructions || 'Réponds de manière amicale et utile.'}\n\nMessage: ${messageText}` }
-                    ]
-                }, {
-                    headers: {
-                        'x-api-key': aiConfig.api_key,
-                        'Content-Type': 'application/json',
-                        'anthropic-version': '2023-06-01'
-                    }
-                });
-                response = claudeResponse.data.content[0].text;
-                break;
-                
-            default:
-                response = 'Fournisseur IA non supporté.';
-        }
-        
-        return response;
-    } catch (error) {
-        console.error('❌ Erreur génération IA:', error.response?.data || error.message);
-        return 'Désolé, je ne peux pas répondre pour le moment.';
-    }
-}
+// ===== ROUTES GÉNÉRALES =====
 
-// Route pour l'historique
-app.get('/api/history/:pageId', authenticateToken, async (req, res) => {
-    try {
-        if (!dbPool) {
-            return res.json([]); // Mode démo
-        }
-
-        const [history] = await executeQuery(
-            'SELECT * FROM message_history WHERE user_id = ? AND page_id = ? ORDER BY created_at DESC LIMIT 100',
-            [req.user.userId, req.params.pageId]
-        );
-        res.json(history);
-    } catch (error) {
-        console.error('Erreur get history:', error);
-        res.status(500).json({ error: 'Erreur lors de la récupération de l\'historique' });
-    }
-});
-
-// Route de santé pour vérifier le statut
+/**
+ * API de santé pour vérifier le statut du serveur
+ */
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok', 
+    res.json({
+        status: 'ok',
         timestamp: new Date().toISOString(),
-        database: dbPool ? 'connected' : 'disconnected',
-        environment: process.env.NODE_ENV || 'development'
+        database: dbPool ? 'connected' : 'demo_mode',
+        session: req.session.user ? 'authenticated' : 'anonymous'
     });
 });
 
-// Gestion des erreurs globales
-app.use((error, req, res, next) => {
-    console.error('❌ Erreur globale:', error);
-    res.status(500).json({ error: 'Erreur interne du serveur' });
+/**
+ * Servir le fichier HTML principal
+ */
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Servir le frontend
+/**
+ * Redirection pour toutes les autres routes vers l'index
+ */
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.redirect('/');
 });
 
-// Fermeture propre
+// ===== GESTION DES ERREURS =====
+
+/**
+ * Middleware de gestion globale des erreurs
+ */
+app.use((error, req, res, next) => {
+    console.error('❌ Erreur serveur:', error);
+    res.status(500).json({
+        success: false,
+        error: 'Erreur interne du serveur'
+    });
+});
+
+/**
+ * Fermeture propre du serveur
+ */
 process.on('SIGINT', async () => {
     console.log('🔄 Arrêt du serveur...');
     if (dbPool) {
@@ -758,21 +668,30 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-// Démarrer le serveur
+// ===== DÉMARRAGE DU SERVEUR =====
+
 async function startServer() {
-    // Charger les variables d'environnement si disponible
+    // Chargement des variables d'environnement
     try {
         require('dotenv').config();
     } catch (e) {
-        console.log('ℹ️ dotenv non trouvé, utilisation des variables par défaut');
+        console.log('⚠️ dotenv non trouvé, utilisation des valeurs par défaut');
     }
-
+    
+    // Vérification de la configuration Facebook
+    if (FACEBOOK_CONFIG.app_id === 'YOUR_FACEBOOK_APP_ID') {
+        console.log('⚠️ ATTENTION: Configurez vos identifiants Facebook dans les variables d\'environnement');
+        console.log('   FACEBOOK_APP_ID et FACEBOOK_APP_SECRET requis');
+    }
+    
     await initDB();
     
     app.listen(PORT, () => {
         console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-        console.log(`🌐 Environnement: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`💾 Base de données: ${dbPool ? '✅ Connectée' : '❌ Déconnectée (mode démo)'}`);
+        console.log(`🌐 URL: http://localhost:${PORT}`);
+        console.log(`📱 Facebook App ID: ${FACEBOOK_CONFIG.app_id}`);
+        console.log(`💾 Base de données: ${dbPool ? '✅ Connectée' : '⚠️ Mode démo'}`);
+        console.log(`🔗 Redirect URI: ${FACEBOOK_CONFIG.redirect_uri}`);
     });
 }
 
