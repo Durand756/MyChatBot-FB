@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook Automation Platform</title>
+    <title>Facebook Messenger Automation</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4267B2 0%, #365899 100%);
             min-height: 100vh;
             color: #333;
         }
@@ -24,86 +24,89 @@
             padding: 20px;
         }
 
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-        }
-
         .card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .login-form, .register-form {
-            max-width: 400px;
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #fff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+        }
+
+        /* Page de connexion */
+        .login-page {
+            max-width: 500px;
             margin: 100px auto;
+            text-align: center;
         }
 
-        .form-group {
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 50px 40px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-card h2 {
+            color: #4267B2;
             margin-bottom: 20px;
+            font-size: 2rem;
         }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #555;
+        .login-card p {
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.6;
         }
 
-        input[type="text"], input[type="email"], input[type="password"], 
-        input[type="number"], textarea, select {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.9);
-        }
-
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .facebook-login-btn {
+            background: #4267B2;
             color: white;
-            padding: 12px 24px;
+            padding: 16px 32px;
             border: none;
             border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 600;
+            cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            justify-content: center;
         }
 
-        .btn:hover {
+        .facebook-login-btn:hover {
+            background: #365899;
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 8px 25px rgba(66, 103, 178, 0.3);
         }
 
-        .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        .facebook-icon {
+            width: 20px;
+            height: 20px;
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
-            color: #333;
-        }
-
+        /* Dashboard */
         .dashboard {
             display: none;
         }
@@ -112,30 +115,80 @@
             display: block;
         }
 
-        .tabs {
+        .user-info {
             display: flex;
-            margin-bottom: 20px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 20px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            padding: 5px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
         }
 
-        .tab {
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .user-details h3 {
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .user-details p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 8px;
+        }
+
+        .nav-tab {
             flex: 1;
             padding: 12px 20px;
             background: transparent;
             border: none;
             border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
             color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            cursor: pointer;
             transition: all 0.3s ease;
         }
 
-        .tab.active {
+        .nav-tab.active {
             background: rgba(255, 255, 255, 0.9);
-            color: #333;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            color: #4267B2;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
         }
 
         .tab-content {
@@ -146,240 +199,331 @@
             display: block;
         }
 
-        .page-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        /* Pages Facebook */
+        .pages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
         }
 
-        .page-item h4 {
-            color: #333;
-            margin-bottom: 5px;
+        .page-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 25px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
         }
 
-        .page-item small {
-            color: #666;
+        .page-card.connected {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
         }
 
-        .response-item {
+        .page-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .page-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 15px;
         }
 
-        .response-content {
-            flex: 1;
+        .page-info h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.2rem;
         }
 
-        .keyword {
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
+        .page-info p {
+            color: #666;
+            font-size: 0.9rem;
         }
 
-        .priority {
-            background: #667eea;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 15px;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-
-        .message-item {
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .message-type {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
+        .page-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: bold;
             text-transform: uppercase;
         }
 
-        .message-type.predefined {
-            background: #e7f3ff;
-            color: #1976d2;
+        .page-status.connected {
+            background: #28a745;
+            color: white;
         }
 
-        .message-type.ai {
-            background: #f3e5f5;
-            color: #7b1fa2;
+        .page-status.disconnected {
+            background: #6c757d;
+            color: white;
         }
 
-        .hidden {
-            display: none;
+        .page-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
         }
 
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #4267B2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #365899;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        /* Réponses automatiques */
+        .response-form {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4267B2;
+            box-shadow: 0 0 0 3px rgba(66, 103, 178, 0.1);
+        }
+
+        .page-selector {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .responses-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response-item {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4267B2;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .response-keyword {
+            font-weight: bold;
+            color: #4267B2;
+            margin-bottom: 8px;
+        }
+
+        .response-text {
+            color: #333;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .response-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        /* Messages d'état */
         .alert {
-            padding: 15px;
+            padding: 15px 20px;
             border-radius: 8px;
             margin-bottom: 20px;
+            font-weight: 500;
         }
 
         .alert.success {
             background: #d4edda;
-            border: 1px solid #c3e6cb;
             color: #155724;
+            border: 1px solid #c3e6cb;
         }
 
         .alert.error {
             background: #f8d7da;
-            border: 1px solid #f5c6cb;
             color: #721c24;
+            border: 1px solid #f5c6cb;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
+        .alert.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
         }
 
-        .modal-content {
-            background: white;
-            margin: 5% auto;
-            padding: 30px;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        /* États de chargement */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
         }
 
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            line-height: 1;
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4267B2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        .close:hover {
-            color: #000;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
+        /* États vides */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
         }
 
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
             .container {
-                padding: 10px;
+                padding: 15px;
             }
             
-            .tabs {
+            .nav-tabs {
                 flex-direction: column;
             }
             
-            .tab {
-                margin-bottom: 5px;
+            .user-info {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
             }
+            
+            .pages-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-selector {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Formulaire de connexion -->
-        <div id="loginForm" class="login-form card">
-            <h2 style="text-align: center; margin-bottom: 30px; color: #333;">Connexion</h2>
-            <form id="loginFormElement">
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Mot de passe</label>
-                    <input type="password" id="loginPassword" required>
-                </div>
-                <button type="submit" class="btn" style="width: 100%; margin-bottom: 15px;">Se connecter</button>
-                <button type="button" class="btn-secondary btn" style="width: 100%;" onclick="showRegister()">Créer un compte</button>
-            </form>
-        </div>
-
-        <!-- Formulaire d'inscription -->
-        <div id="registerForm" class="register-form card hidden">
-            <h2 style="text-align: center; margin-bottom: 30px; color: #333;">Inscription</h2>
-            <form id="registerFormElement">
-                <div class="form-group">
-                    <label for="registerName">Nom complet</label>
-                    <input type="text" id="registerName" required>
-                </div>
-                <div class="form-group">
-                    <label for="registerEmail">Email</label>
-                    <input type="email" id="registerEmail" required>
-                </div>
-                <div class="form-group">
-                    <label for="registerPassword">Mot de passe</label>
-                    <input type="password" id="registerPassword" required>
-                </div>
-                <button type="submit" class="btn" style="width: 100%; margin-bottom: 15px;">S'inscrire</button>
-                <button type="button" class="btn-secondary btn" style="width: 100%;" onclick="showLogin()">Déjà un compte ?</button>
-            </form>
+        <!-- Page de connexion -->
+        <div id="loginPage" class="login-page">
+            <div class="login-card">
+                <h2>🤖 Facebook Automation</h2>
+                <p>Automatisez vos réponses sur Facebook Messenger avec une interface simple et intuitive.</p>
+                <a href="/auth/facebook" class="facebook-login-btn">
+                    <svg class="facebook-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Se connecter avec Facebook
+                </a>
+                <div id="loginMessage" class="hidden"></div>
+            </div>
         </div>
 
         <!-- Dashboard principal -->
         <div id="dashboard" class="dashboard">
-            <!-- Header -->
-            <div class="header">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="color: #333;">🤖 Facebook Automation Platform</h1>
-                        <p style="color: #666; margin-top: 5px;">Bienvenue <span id="userName"></span></p>
+            <!-- En-tête utilisateur -->
+            <div class="user-info">
+                <div class="user-profile">
+                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <h3 id="userName">Chargement...</h3>
+                        <p id="userEmail">Récupération des informations...</p>
                     </div>
-                    <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
                 </div>
+                <button id="logoutBtn" class="logout-btn">Déconnexion</button>
             </div>
 
-            <!-- Onglets de navigation -->
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('pages')">📄 Mes Pages</button>
-                <button class="tab" onclick="showTab('responses')">💬 Réponses</button>
-                <button class="tab" onclick="showTab('ai-config')">🤖 Configuration IA</button>
-                <button class="tab" onclick="showTab('history')">📊 Historique</button>
+            <!-- Navigation -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="pages">📄 Mes Pages</button>
+                <button class="nav-tab" data-tab="responses">💬 Réponses Auto</button>
+                <button class="nav-tab" data-tab="analytics">📊 Statistiques</button>
             </div>
 
             <!-- Contenu des onglets -->
+            
             <!-- Onglet Pages -->
             <div id="pages-tab" class="tab-content active">
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>🔗 Pages Facebook connectées</h3>
-                        <button class="btn" onclick="showConnectPageModal()">+ Connecter une page</button>
-                    </div>
-                    <div id="pagesList">
-                        <p style="text-align: center; color: #666;">Aucune page connectée</p>
+                    <h3 style="margin-bottom: 25px;">🔗 Pages Facebook connectées</h3>
+                    <div id="pagesContainer">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Récupération de vos pages Facebook...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -387,591 +531,528 @@
             <!-- Onglet Réponses -->
             <div id="responses-tab" class="tab-content">
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>💬 Réponses prédéfinies</h3>
-                        <div>
-                            <select id="responsePageSelect" style="margin-right: 10px;">
-                                <option value="">Sélectionner une page</option>
-                            </select>
-                            <button class="btn" onclick="showAddResponseModal()">+ Ajouter</button>
-                        </div>
+                    <h3 style="margin-bottom: 25px;">💬 Configuration des réponses automatiques</h3>
+                    
+                    <!-- Sélecteur de page -->
+                    <div class="page-selector">
+                        <label for="selectedPage"><strong>Sélectionner une page :</strong></label>
+                        <select id="selectedPage" class="form-control" style="flex: 1;">
+                            <option value="">Choisir une page connectée...</option>
+                        </select>
                     </div>
+
+                    <!-- Formulaire d'ajout de réponse -->
+                    <div id="responseForm" class="response-form hidden">
+                        <h4 style="margin-bottom: 20px;">Ajouter une réponse automatique</h4>
+                        <form id="addResponseForm">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div class="form-group">
+                                    <label for="keyword">Mot-clé déclencheur</label>
+                                    <input type="text" id="keyword" class="form-control" placeholder="Ex: prix, info, contact" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="priority">Priorité (1-10)</label>
+                                    <input type="number" id="priority" class="form-control" min="1" max="10" value="1">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="responseText">Message de réponse</label>
+                                <textarea id="responseText" class="form-control" rows="3" placeholder="La réponse à envoyer automatiquement..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">✅ Ajouter la réponse</button>
+                        </form>
+                    </div>
+
+                    <!-- Liste des réponses -->
                     <div id="responsesList">
-                        <p style="text-align: center; color: #666;">Sélectionnez une page pour voir les réponses</p>
+                        <div class="empty-state">
+                            <h3>Aucune page sélectionnée</h3>
+                            <p>Choisissez d'abord une page pour configurer les réponses automatiques.</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Onglet Configuration IA -->
-            <div id="ai-config-tab" class="tab-content">
+            <!-- Onglet Statistiques -->
+            <div id="analytics-tab" class="tab-content">
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>🤖 Configuration de l'IA</h3>
-                        <select id="aiPageSelect">
-                            <option value="">Sélectionner une page</option>
-                        </select>
-                    </div>
-                    <form id="aiConfigForm">
-                        <div class="grid">
-                            <div class="form-group">
-                                <label for="aiProvider">Fournisseur IA</label>
-                                <select id="aiProvider" required>
-                                    <option value="">Choisir...</option>
-                                    <option value="OpenAI">OpenAI (GPT)</option>
-                                    <option value="Mistral">Mistral AI</option>
-                                    <option value="Claude">Anthropic Claude</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="aiModel">Modèle</label>
-                                <select id="aiModel" required>
-                                    <option value="">Choisir d'abord le fournisseur</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="aiApiKey">Clé API</label>
-                            <input type="password" id="aiApiKey" placeholder="Votre clé API" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="aiTemperature">Température (0-1)</label>
-                            <input type="number" id="aiTemperature" min="0" max="1" step="0.1" value="0.7">
-                        </div>
-                        <div class="form-group">
-                            <label for="aiInstructions">Instructions système</label>
-                            <textarea id="aiInstructions" rows="4" placeholder="Ex: Réponds de manière amicale et professionnelle. Utilise des emojis modérément..."></textarea>
-                        </div>
-                        <button type="submit" class="btn">💾 Sauvegarder</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Onglet Historique -->
-            <div id="history-tab" class="tab-content">
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>📊 Historique des conversations</h3>
-                        <select id="historyPageSelect">
-                            <option value="">Sélectionner une page</option>
-                        </select>
-                    </div>
-                    <div id="historyList">
-                        <p style="text-align: center; color: #666;">Sélectionnez une page pour voir l'historique</p>
+                    <h3 style="margin-bottom: 25px;">📊 Statistiques des conversations</h3>
+                    <div class="empty-state">
+                        <h3>Fonctionnalité en développement</h3>
+                        <p>Les statistiques détaillées seront bientôt disponibles.</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Modal de connexion de page -->
-        <div id="connectPageModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal('connectPageModal')">&times;</span>
-                <h3 style="margin-bottom: 20px;">🔗 Connecter une page Facebook</h3>
-                <form id="connectPageForm">
-                    <div class="form-group">
-                        <label for="pageId">ID de la page Facebook</label>
-                        <input type="text" id="pageId" required placeholder="Ex: 123456789012345">
-                    </div>
-                    <div class="form-group">
-                        <label for="pageName">Nom de la page</label>
-                        <input type="text" id="pageName" required placeholder="Ex: Ma Super Page">
-                    </div>
-                    <div class="form-group">
-                        <label for="accessToken">Token d'accès à la page</label>
-                        <input type="text" id="accessToken" required placeholder="Token long-lived de votre page">
-                    </div>
-                    <div class="form-group">
-                        <label for="appId">Facebook App ID</label>
-                        <input type="text" id="appId" required placeholder="Votre App ID Facebook">
-                    </div>
-                    <div class="form-group">
-                        <label for="appSecret">Facebook App Secret</label>
-                        <input type="password" id="appSecret" required placeholder="Votre App Secret">
-                    </div>
-                    <div class="form-group">
-                        <label for="webhookToken">Token de vérification Webhook</label>
-                        <input type="text" id="webhookToken" required placeholder="Token pour vérifier le webhook">
-                    </div>
-                    <button type="submit" class="btn">🔗 Connecter</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Modal d'ajout de réponse -->
-        <div id="addResponseModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal('addResponseModal')">&times;</span>
-                <h3 style="margin-bottom: 20px;">💬 Ajouter une réponse</h3>
-                <form id="addResponseForm">
-                    <div class="form-group">
-                        <label for="responseKeyword">Mot-clé déclencheur</label>
-                        <input type="text" id="responseKeyword" required placeholder="Ex: bonjour, prix, contact">
-                    </div>
-                    <div class="form-group">
-                        <label for="responseText">Réponse</label>
-                        <textarea id="responseText" rows="3" required placeholder="La réponse à envoyer..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="responsePriority">Priorité (1-10)</label>
-                        <input type="number" id="responsePriority" min="1" max="10" value="1">
-                    </div>
-                    <button type="submit" class="btn">💾 Ajouter</button>
-                </form>
             </div>
         </div>
     </div>
 
     <script>
+        // Variables globales
         let currentUser = null;
-        let token = localStorage.getItem('token');
-        let currentPageId = null;
+        let userPages = [];
+        let selectedPageId = null;
 
-        // Initialisation
-        document.addEventListener('DOMContentLoaded', function() {
-            if (token) {
-                showDashboard();
-                loadPages();
-            } else {
-                showLogin();
-            }
-
-            // Event listeners
-            document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
-            document.getElementById('registerFormElement').addEventListener('submit', handleRegister);
-            document.getElementById('connectPageForm').addEventListener('submit', handleConnectPage);
-            document.getElementById('addResponseForm').addEventListener('submit', handleAddResponse);
-            document.getElementById('aiConfigForm').addEventListener('submit', handleAIConfig);
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Vérifier les paramètres d'URL pour les messages
+            checkUrlParams();
             
-            // Listeners pour les selects
-            document.getElementById('responsePageSelect').addEventListener('change', handleResponsePageChange);
-            document.getElementById('aiPageSelect').addEventListener('change', handleAIPageChange);
-            document.getElementById('historyPageSelect').addEventListener('change', handleHistoryPageChange);
-            document.getElementById('aiProvider').addEventListener('change', handleProviderChange);
+            // Ajouter les event listeners
+            setupEventListeners();
+            
+            // Vérifier si l'utilisateur est connecté
+            await checkUserAuth();
         });
 
-        // Fonctions d'authentification
-        function showLogin() {
-            document.getElementById('loginForm').classList.remove('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('dashboard').classList.remove('active');
-        }
-
-        function showRegister() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-            document.getElementById('dashboard').classList.remove('active');
-        }
-
-        function showDashboard() {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('dashboard').classList.add('active');
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
+        /**
+         * Vérifie les paramètres d'URL pour afficher des messages appropriés
+         */
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const loginStatus = urlParams.get('login');
+            const error = urlParams.get('error');
             
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-
-            try {
-                const response = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok) {
-                    token = data.token;
-                    currentUser = data.user;
-                    localStorage.setItem('token', token);
-                    document.getElementById('userName').textContent = currentUser.name;
-                    showDashboard();
-                    loadPages();
-                    showAlert('Connexion réussie !', 'success');
-                } else {
-                    showAlert(data.error, 'error');
+            if (loginStatus === 'success') {
+                showMessage('Connexion réussie ! Récupération de vos informations...', 'success');
+                // Nettoyer l'URL
+                window.history.replaceState({}, document.title, '/');
+            } else if (error) {
+                let errorMessage = 'Erreur de connexion';
+                switch(error) {
+                    case 'access_denied':
+                        errorMessage = 'Connexion annulée par l\'utilisateur';
+                        break;
+                    case 'invalid_state':
+                        errorMessage = 'Erreur de sécurité, veuillez réessayer';
+                        break;
+                    case 'auth_failed':
+                        errorMessage = 'Échec de l\'authentification Facebook';
+                        break;
                 }
-            } catch (error) {
-                showAlert('Erreur de connexion', 'error');
+                showMessage(errorMessage, 'error');
+                // Nettoyer l'URL
+                window.history.replaceState({}, document.title, '/');
             }
         }
 
-        async function handleRegister(e) {
-            e.preventDefault();
-            
-            const name = document.getElementById('registerName').value;
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-
-            try {
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok) {
-                    showAlert('Compte créé avec succès !', 'success');
-                    showLogin();
-                } else {
-                    showAlert(data.error, 'error');
-                }
-            } catch (error) {
-                showAlert('Erreur lors de la création du compte', 'error');
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('token');
-            token = null;
-            currentUser = null;
-            showLogin();
-        }
-
-        // Fonctions de gestion des onglets
-        function showTab(tabName) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            document.getElementById(tabName + '-tab').classList.add('active');
-        }
-
-        // Fonctions de gestion des pages
-        async function loadPages() {
-            try {
-                const response = await fetch('/api/facebook/pages', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const pages = await response.json();
-                displayPages(pages);
-                populatePageSelects(pages);
-            } catch (error) {
-                showAlert('Erreur lors du chargement des pages', 'error');
-            }
-        }
-
-        function displayPages(pages) {
-            const pagesList = document.getElementById('pagesList');
-            
-            if (pages.length === 0) {
-                pagesList.innerHTML = '<p style="text-align: center; color: #666;">Aucune page connectée</p>';
-                return;
-            }
-
-            pagesList.innerHTML = pages.map(page => `
-                <div class="page-item">
-                    <div>
-                        <h4>${page.page_name}</h4>
-                        <small>ID: ${page.page_id} • ${page.is_active ? '✅ Active' : '❌ Inactive'}</small>
-                        <br><small>Connectée le ${new Date(page.created_at).toLocaleDateString()}</small>
-                    </div>
-                    <div>
-                        <button class="btn" onclick="managePage('${page.page_id}')">Gérer</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function populatePageSelects(pages) {
-            const selects = ['responsePageSelect', 'aiPageSelect', 'historyPageSelect'];
-            
-            selects.forEach(selectId => {
-                const select = document.getElementById(selectId);
-                select.innerHTML = '<option value="">Sélectionner une page</option>';
-                
-                pages.forEach(page => {
-                    const option = document.createElement('option');
-                    option.value = page.page_id;
-                    option.textContent = page.page_name;
-                    select.appendChild(option);
+        /**
+         * Configure tous les event listeners
+         */
+        function setupEventListeners() {
+            // Navigation entre onglets
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const targetTab = e.target.dataset.tab;
+                    switchTab(targetTab);
                 });
             });
+
+            // Déconnexion
+            document.getElementById('logoutBtn').addEventListener('click', logout);
+
+            // Sélection de page pour les réponses
+            document.getElementById('selectedPage').addEventListener('change', (e) => {
+                selectedPageId = e.target.value;
+                if (selectedPageId) {
+                    document.getElementById('responseForm').classList.remove('hidden');
+                    loadPageResponses(selectedPageId);
+                } else {
+                    document.getElementById('responseForm').classList.add('hidden');
+                    showEmptyResponsesState();
+                }
+            });
+
+            // Formulaire d'ajout de réponse
+            document.getElementById('addResponseForm').addEventListener('submit', handleAddResponse);
         }
 
-        function showConnectPageModal() {
-            document.getElementById('connectPageModal').style.display = 'block';
-        }
-
-        async function handleConnectPage(e) {
-            e.preventDefault();
-            
-            const formData = {
-                pageId: document.getElementById('pageId').value,
-                pageName: document.getElementById('pageName').value,
-                accessToken: document.getElementById('accessToken').value,
-                appId: document.getElementById('appId').value,
-                appSecret: document.getElementById('appSecret').value,
-                webhookToken: document.getElementById('webhookToken').value
-            };
-
+        /**
+         * Vérifie l'authentification de l'utilisateur
+         */
+        async function checkUserAuth() {
             try {
-                const response = await fetch('/api/facebook/connect', {
+                const response = await fetch('/api/user');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        currentUser = data.user;
+                        showDashboard();
+                        await loadUserPages();
+                        return;
+                    }
+                }
+                
+                // Utilisateur non connecté
+                showLoginPage();
+            } catch (error) {
+                console.error('Erreur vérification auth:', error);
+                showLoginPage();
+            }
+        }
+
+        /**
+         * Affiche la page de connexion
+         */
+        function showLoginPage() {
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('dashboard').classList.remove('active');
+        }
+
+        /**
+         * Affiche le dashboard
+         */
+        function showDashboard() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+            
+            // Remplir les informations utilisateur
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userEmail').textContent = currentUser.email || '';
+                
+                if (currentUser.profile_picture) {
+                    document.getElementById('userAvatar').src = currentUser.profile_picture;
+                }
+            }
+        }
+
+        /**
+         * Change d'onglet dans le dashboard
+         */
+        function switchTab(tabName) {
+            // Désactiver tous les onglets
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Activer l'onglet sélectionné
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        /**
+         * Charge les pages Facebook de l'utilisateur
+         */
+        async function loadUserPages() {
+            try {
+                const response = await fetch('/api/pages');
+                const data = await response.json();
+                
+                if (data.success) {
+                    userPages = data.pages;
+                    displayPages(userPages);
+                    populatePageSelector(userPages);
+                } else {
+                    showMessage('Erreur lors du chargement des pages', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur chargement pages:', error);
+                showMessage('Impossible de charger vos pages Facebook', 'error');
+            }
+        }
+
+        /**
+         * Affiche les pages Facebook dans la grille
+         */
+        function displayPages(pages) {
+            const container = document.getElementById('pagesContainer');
+            
+            if (pages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Aucune page trouvée</h3>
+                        <p>Vous ne gérez aucune page Facebook ou les permissions sont insuffisantes.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const pagesHTML = pages.map(page => `
+                <div class="page-card ${page.is_connected ? 'connected' : ''}">
+                    <div class="page-header">
+                        <div class="page-info">
+                            <h4>${escapeHtml(page.name)}</h4>
+                            <p>ID: ${page.id}</p>
+                            <p>Catégorie: ${escapeHtml(page.category || 'Non spécifiée')}</p>
+                        </div>
+                        <span class="page-status ${page.is_connected ? 'connected' : 'disconnected'}">
+                            ${page.is_connected ? 'Connectée' : 'Déconnectée'}
+                        </span>
+                    </div>
+                    <div class="page-actions">
+                        ${page.is_connected ? 
+                            `<button class="btn btn-danger" onclick="disconnectPage('${page.id}', '${escapeHtml(page.name)}')">
+                                🔌 Déconnecter
+                             </button>` :
+                            `<button class="btn btn-primary" onclick="connectPage('${page.id}', '${escapeHtml(page.name)}', '${page.access_token}')">
+                                ⚡ Connecter
+                             </button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = `<div class="pages-grid">${pagesHTML}</div>`;
+        }
+
+        /**
+         * Remplit le sélecteur de pages pour les réponses
+         */
+        function populatePageSelector(pages) {
+            const selector = document.getElementById('selectedPage');
+            const connectedPages = pages.filter(page => page.is_connected);
+            
+            selector.innerHTML = '<option value="">Choisir une page connectée...</option>';
+            
+            connectedPages.forEach(page => {
+                const option = document.createElement('option');
+                option.value = page.id;
+                option.textContent = page.name;
+                selector.appendChild(option);
+            });
+
+            if (connectedPages.length === 0) {
+                selector.innerHTML = '<option value="">Aucune page connectée</option>';
+                selector.disabled = true;
+            } else {
+                selector.disabled = false;
+            }
+        }
+
+        /**
+         * Connecte une page Facebook pour l'automatisation
+         */
+        async function connectPage(pageId, pageName, pageAccessToken) {
+            try {
+                const response = await fetch('/api/pages/connect', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(formData)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pageId: pageId,
+                        pageName: pageName,
+                        pageAccessToken: pageAccessToken
+                    })
                 });
 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    showAlert('Page connectée avec succès !', 'success');
-                    closeModal('connectPageModal');
-                    loadPages();
-                    document.getElementById('connectPageForm').reset();
+                if (data.success) {
+                    showMessage(`Page "${pageName}" connectée avec succès !`, 'success');
+                    await loadUserPages(); // Recharger la liste
                 } else {
-                    showAlert(data.error, 'error');
+                    showMessage(data.error || 'Erreur lors de la connexion', 'error');
                 }
             } catch (error) {
-                showAlert('Erreur lors de la connexion de la page', 'error');
+                console.error('Erreur connexion page:', error);
+                showMessage('Erreur lors de la connexion de la page', 'error');
             }
         }
 
-        // Fonctions de gestion des réponses
-        function handleResponsePageChange() {
-            const pageId = document.getElementById('responsePageSelect').value;
-            if (pageId) {
-                currentPageId = pageId;
-                loadResponses(pageId);
-            } else {
-                document.getElementById('responsesList').innerHTML = '<p style="text-align: center; color: #666;">Sélectionnez une page pour voir les réponses</p>';
-            }
-        }
-
-        async function loadResponses(pageId) {
-            try {
-                const response = await fetch(`/api/responses/${pageId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const responses = await response.json();
-                displayResponses(responses);
-            } catch (error) {
-                showAlert('Erreur lors du chargement des réponses', 'error');
-            }
-        }
-
-        function displayResponses(responses) {
-            const responsesList = document.getElementById('responsesList');
-            
-            if (responses.length === 0) {
-                responsesList.innerHTML = '<p style="text-align: center; color: #666;">Aucune réponse configurée</p>';
+        /**
+         * Déconnecte une page Facebook
+         */
+        async function disconnectPage(pageId, pageName) {
+            if (!confirm(`Êtes-vous sûr de vouloir déconnecter la page "${pageName}" ?`)) {
                 return;
             }
 
-            responsesList.innerHTML = responses.map(response => `
-                <div class="response-item">
-                    <div class="response-content">
-                        <div class="keyword">${response.keyword}</div>
-                        <div>${response.response}</div>
-                        <small style="color: #666;">Créé le ${new Date(response.created_at).toLocaleDateString()}</small>
+            try {
+                const response = await fetch('/api/pages/disconnect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pageId: pageId })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(`Page "${pageName}" déconnectée`, 'success');
+                    await loadUserPages(); // Recharger la liste
+                } else {
+                    showMessage(data.error || 'Erreur lors de la déconnexion', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur déconnexion page:', error);
+                showMessage('Erreur lors de la déconnexion', 'error');
+            }
+        }
+
+        /**
+         * Charge les réponses automatiques d'une page
+         */
+        async function loadPageResponses(pageId) {
+            try {
+                const response = await fetch(`/api/responses/${pageId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayResponses(data.responses);
+                } else {
+                    showMessage('Erreur lors du chargement des réponses', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur chargement réponses:', error);
+                showEmptyResponsesState();
+            }
+        }
+
+        /**
+         * Affiche la liste des réponses automatiques
+         */
+        function displayResponses(responses) {
+            const container = document.getElementById('responsesList');
+            
+            if (responses.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Aucune réponse configurée</h3>
+                        <p>Ajoutez votre première réponse automatique ci-dessus.</p>
                     </div>
-                    <div>
-                        <span class="priority">Priorité ${response.priority}</span>
+                `;
+                return;
+            }
+
+            const responsesHTML = responses.map(response => `
+                <div class="response-item">
+                    <div class="response-keyword">🔑 ${escapeHtml(response.keyword)}</div>
+                    <div class="response-text">${escapeHtml(response.response)}</div>
+                    <div class="response-meta">
+                        <span>Priorité: ${response.priority}</span>
+                        <span>${new Date(response.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
             `).join('');
+
+            container.innerHTML = `
+                <div class="responses-list">
+                    <h4 style="margin-bottom: 20px;">Réponses configurées (${responses.length})</h4>
+                    ${responsesHTML}
+                </div>
+            `;
         }
 
-        function showAddResponseModal() {
-            if (!currentPageId) {
-                showAlert('Veuillez d\'abord sélectionner une page', 'error');
-                return;
-            }
-            document.getElementById('addResponseModal').style.display = 'block';
+        /**
+         * Affiche l'état vide pour les réponses
+         */
+        function showEmptyResponsesState() {
+            document.getElementById('responsesList').innerHTML = `
+                <div class="empty-state">
+                    <h3>Aucune page sélectionnée</h3>
+                    <p>Choisissez d'abord une page pour configurer les réponses automatiques.</p>
+                </div>
+            `;
         }
 
+        /**
+         * Gère l'ajout d'une nouvelle réponse automatique
+         */
         async function handleAddResponse(e) {
             e.preventDefault();
             
+            if (!selectedPageId) {
+                showMessage('Aucune page sélectionnée', 'error');
+                return;
+            }
+
             const formData = {
-                pageId: currentPageId,
-                keyword: document.getElementById('responseKeyword').value,
-                response: document.getElementById('responseText').value,
-                priority: parseInt(document.getElementById('responsePriority').value)
+                pageId: selectedPageId,
+                keyword: document.getElementById('keyword').value.trim(),
+                response: document.getElementById('responseText').value.trim(),
+                priority: parseInt(document.getElementById('priority').value)
             };
+
+            if (!formData.keyword || !formData.response) {
+                showMessage('Veuillez remplir tous les champs requis', 'error');
+                return;
+            }
 
             try {
                 const response = await fetch('/api/responses', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    showAlert('Réponse ajoutée avec succès !', 'success');
-                    closeModal('addResponseModal');
-                    loadResponses(currentPageId);
+                if (data.success) {
+                    showMessage('Réponse automatique ajoutée !', 'success');
+                    
+                    // Réinitialiser le formulaire
                     document.getElementById('addResponseForm').reset();
+                    document.getElementById('priority').value = 1;
+                    
+                    // Recharger les réponses
+                    await loadPageResponses(selectedPageId);
                 } else {
-                    showAlert(data.error, 'error');
+                    showMessage(data.error || 'Erreur lors de l\'ajout', 'error');
                 }
             } catch (error) {
-                showAlert('Erreur lors de l\'ajout de la réponse', 'error');
+                console.error('Erreur ajout réponse:', error);
+                showMessage('Erreur lors de l\'ajout de la réponse', 'error');
             }
         }
 
-        // Fonctions de configuration IA
-        function handleAIPageChange() {
-            const pageId = document.getElementById('aiPageSelect').value;
-            if (pageId) {
-                loadAIConfig(pageId);
-            }
-        }
-
-        async function loadAIConfig(pageId) {
-            // Charger la configuration IA existante si elle existe
-            // Pour l'instant, on reset le formulaire
-            document.getElementById('aiConfigForm').reset();
-        }
-
-        function handleProviderChange() {
-            const provider = document.getElementById('aiProvider').value;
-            const modelSelect = document.getElementById('aiModel');
-            
-            modelSelect.innerHTML = '<option value="">Choisir un modèle</option>';
-            
-            const models = {
-                'OpenAI': ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-                'Mistral': ['mistral-large', 'mistral-medium', 'mistral-small'],
-                'Claude': ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku']
-            };
-            
-            if (models[provider]) {
-                models[provider].forEach(model => {
-                    const option = document.createElement('option');
-                    option.value = model;
-                    option.textContent = model;
-                    modelSelect.appendChild(option);
-                });
-            }
-        }
-
-        async function handleAIConfig(e) {
-            e.preventDefault();
-            
-            const pageId = document.getElementById('aiPageSelect').value;
-            if (!pageId) {
-                showAlert('Veuillez sélectionner une page', 'error');
-                return;
-            }
-
-            const formData = {
-                pageId,
-                provider: document.getElementById('aiProvider').value,
-                apiKey: document.getElementById('aiApiKey').value,
-                model: document.getElementById('aiModel').value,
-                temperature: parseFloat(document.getElementById('aiTemperature').value),
-                instructions: document.getElementById('aiInstructions').value
-            };
-
+        /**
+         * Déconnecte l'utilisateur
+         */
+        async function logout() {
             try {
-                const response = await fetch('/api/ai-config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(formData)
-                });
-
+                const response = await fetch('/api/logout', { method: 'POST' });
                 const data = await response.json();
                 
-                if (response.ok) {
-                    showAlert('Configuration IA sauvegardée !', 'success');
-                } else {
-                    showAlert(data.error, 'error');
+                if (data.success) {
+                    currentUser = null;
+                    userPages = [];
+                    selectedPageId = null;
+                    showLoginPage();
+                    showMessage('Déconnexion réussie', 'success');
                 }
             } catch (error) {
-                showAlert('Erreur lors de la sauvegarde', 'error');
+                console.error('Erreur déconnexion:', error);
+                // Forcer la déconnexion côté client
+                currentUser = null;
+                showLoginPage();
             }
         }
 
-        // Fonctions d'historique
-        function handleHistoryPageChange() {
-            const pageId = document.getElementById('historyPageSelect').value;
-            if (pageId) {
-                loadHistory(pageId);
-            } else {
-                document.getElementById('historyList').innerHTML = '<p style="text-align: center; color: #666;">Sélectionnez une page pour voir l\'historique</p>';
-            }
-        }
-
-        async function loadHistory(pageId) {
-            try {
-                const response = await fetch(`/api/history/${pageId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const history = await response.json();
-                displayHistory(history);
-            } catch (error) {
-                showAlert('Erreur lors du chargement de l\'historique', 'error');
-            }
-        }
-
-        function displayHistory(history) {
-            const historyList = document.getElementById('historyList');
+        /**
+         * Affiche un message à l'utilisateur
+         */
+        function showMessage(message, type = 'info') {
+            // Supprimer les anciens messages
+            document.querySelectorAll('.alert').forEach(alert => alert.remove());
             
-            if (history.length === 0) {
-                historyList.innerHTML = '<p style="text-align: center; color: #666;">Aucun message dans l\'historique</p>';
-                return;
-            }
-
-            historyList.innerHTML = history.map(item => `
-                <div class="message-item">
-                    <div class="message-header">
-                        <strong>Message reçu</strong>
-                        <div>
-                            <span class="message-type ${item.response_type}">${item.response_type}</span>
-                            <small style="margin-left: 10px;">${new Date(item.created_at).toLocaleString()}</small>
-                        </div>
-                    </div>
-                    <div style="margin-bottom: 10px;"><strong>👤:</strong> ${item.message_text}</div>
-                    <div><strong>🤖:</strong> ${item.response_text}</div>
-                </div>
-            `).join('');
-        }
-
-        // Fonctions utilitaires
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        function showAlert(message, type) {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert ${type}`;
             alertDiv.textContent = message;
             
-            document.body.insertBefore(alertDiv, document.body.firstChild);
+            // Insérer au début du container
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, container.firstChild);
             
+            // Supprimer automatiquement après 5 secondes
             setTimeout(() => {
-                alertDiv.remove();
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
             }, 5000);
         }
 
-        // Fermer les modals en cliquant à l'extérieur
-        window.onclick = function(event) {
-            const modals = document.querySelectorAll('.modal');
-            modals.forEach(modal => {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
+        /**
+         * Échappe le HTML pour éviter les injections XSS
+         */
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
     </script>
 </body>
